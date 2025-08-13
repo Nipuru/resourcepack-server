@@ -1,0 +1,46 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# 构建输出
+resourcepack-server
+resourcepack-server.exe
+
+# 依赖
+vendor/
+
+# 日志文件
+logs/
+*.log
+
+# 配置文件（运行时生成）
+settings.toml
+
+# 临时文件
+temp/
+tmp/
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 资源包目录（用户数据）
+resourcepacks/
+
+# 环境变量
+.env
+.env.local

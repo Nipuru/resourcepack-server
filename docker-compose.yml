@@ -1,0 +1,21 @@
+version: '1.0'
+
+services:
+  resourcepack-server:
+    build: .
+    container_name: resourcepack-server
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./resourcepacks:/app/resourcepacks
+      - ./config:/app/config
+      - ./logs:/app/logs
+    environment:
+      - TZ=Asia/Shanghai
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/debug"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

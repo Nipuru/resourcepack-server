@@ -1,0 +1,17 @@
+# Minecraft 资源包服务器配置文件模板
+# 程序首次运行时会自动复制此文件为 settings.toml
+
+[server]
+host = "0.0.0.0"
+port = 8080
+debug = false
+
+[packs]
+directory = "resourcepacks"
+file_monitor = true
+file_monitor_interval = 1.0
+scan_cooldown = 2.0
+
+[logging]
+level = "INFO"
+file = "logs/server.log"
