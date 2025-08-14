@@ -10,17 +10,17 @@ import (
 	"go.uber.org/zap"
 
 	"resourcepack-server/config"
-	"resourcepack-server/packs"
+	"resourcepack-server/pack"
 )
 
 type Server struct {
-	config        *config.Config
-	packsManager  *packs.PacksManager
-	logger        *zap.Logger
-	router        *gin.Engine
+	config       *config.Config
+	packsManager *pack.PacksManager
+	logger       *zap.Logger
+	router       *gin.Engine
 }
 
-func NewServer(config *config.Config, packsManager *packs.PacksManager, logger *zap.Logger) *Server {
+func NewServer(config *config.Config, packsManager *pack.PacksManager, logger *zap.Logger) *Server {
 	if !config.Server.Debug {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -46,13 +46,13 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/api/packs/:name", s.getPackHandler)
 	s.router.GET("/download/:name", s.downloadPackHandler)
 	s.router.GET("/hash/:name", s.hashHandler)
-	s.router.POST("/api/rescan", s.rescanPacksHandler)
+	s.router.GET("/api/rescan", s.rescanPacksHandler)
 	s.router.GET("/debug", s.debugHandler)
 }
 
 func (s *Server) indexHandler(c *gin.Context) {
 	packs := s.packsManager.GetAllPacks()
-	
+
 	htmlContent := fmt.Sprintf(`
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -166,9 +166,15 @@ func (s *Server) indexHandler(c *gin.Context) {
             <a href="/download/%s" class="download-btn">下载资源包</a>
             <button onclick="copyHash('%s')" class="copy-btn">复制 Hash</button>
         </div>
-`, pack.Name, pack.Description, pack.PackFormat, sizeMB, 
-   func() string { if pack.IsDirectory { return "目录" } else { return "ZIP文件" } }(),
-   pack.LastModified.Format("2006-01-02 15:04:05"), pack.Hash, pack.Name, pack.Hash)
+`, pack.Name, pack.Description, pack.PackFormat, sizeMB,
+				func() string {
+					if pack.IsDirectory {
+						return "目录"
+					} else {
+						return "ZIP文件"
+					}
+				}(),
+				pack.LastModified.Format("2006-01-02 15:04:05"), pack.Hash, pack.Name, pack.Hash)
 		}
 	}
 
@@ -189,7 +195,7 @@ func (s *Server) indexHandler(c *gin.Context) {
 func (s *Server) listPacksHandler(c *gin.Context) {
 	packs := s.packsManager.GetAllPacks()
 	packsData := make([]map[string]interface{}, 0, len(packs))
-	
+
 	for _, pack := range packs {
 		packsData = append(packsData, pack.ToMap())
 	}
@@ -204,7 +210,7 @@ func (s *Server) listPacksHandler(c *gin.Context) {
 func (s *Server) getPackHandler(c *gin.Context) {
 	name := c.Param("name")
 	pack := s.packsManager.GetPack(name)
-	
+
 	if pack == nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
@@ -222,7 +228,7 @@ func (s *Server) getPackHandler(c *gin.Context) {
 func (s *Server) downloadPackHandler(c *gin.Context) {
 	name := c.Param("name")
 	pack := s.packsManager.GetPack(name)
-	
+
 	if pack == nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
@@ -242,7 +248,7 @@ func (s *Server) downloadPackHandler(c *gin.Context) {
 			})
 			return
 		}
-		
+
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", pack.Name))
 		c.Header("Content-Type", "application/zip")
 		c.File(zipPath)
@@ -256,7 +262,7 @@ func (s *Server) downloadPackHandler(c *gin.Context) {
 func (s *Server) hashHandler(c *gin.Context) {
 	name := c.Param("name")
 	hash := s.packsManager.GetPackHash(name)
-	
+
 	if hash == "" {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
@@ -291,7 +297,7 @@ func (s *Server) rescanPacksHandler(c *gin.Context) {
 
 func (s *Server) debugHandler(c *gin.Context) {
 	debugInfo := gin.H{
-		"server": "Resource Pack Server",
+		"server":  "Resource Pack Server",
 		"version": "1.0.0",
 		"config": gin.H{
 			"host":  s.config.Server.Host,
@@ -323,7 +329,7 @@ func (s *Server) errorMiddleware() gin.HandlerFunc {
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last()
 			s.logger.Error("请求处理错误", zap.Error(err.Err))
-			
+
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
 				"error":   err.Error(),

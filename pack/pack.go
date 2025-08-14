@@ -1,4 +1,4 @@
-package packs
+package pack
 
 import (
 	"archive/zip"
@@ -44,20 +44,20 @@ func (rp *ResourcePack) ToMap() map[string]interface{} {
 
 type PackInfo struct {
 	Description string `json:"description"`
-	PackFormat int    `json:"pack_format"`
+	PackFormat  int    `json:"pack_format"`
 }
 
 type PacksManager struct {
-	config           *Config
-	logger           *zap.Logger
-	packsDirectory   string
-	tempDir          string
-	packs            map[string]*ResourcePack
-	mu               sync.RWMutex
-	fileWatcher      *fsnotify.Watcher
-	fileMonitorStop  chan struct{}
-	lastScanTime     time.Time
-	scanCooldown     time.Duration
+	config          *Config
+	logger          *zap.Logger
+	packsDirectory  string
+	tempDir         string
+	packs           map[string]*ResourcePack
+	mu              sync.RWMutex
+	fileWatcher     *fsnotify.Watcher
+	fileMonitorStop chan struct{}
+	lastScanTime    time.Time
+	scanCooldown    time.Duration
 }
 
 type Config struct {
@@ -75,11 +75,15 @@ func NewPacksManager(config *Config, logger *zap.Logger) (*PacksManager, error) 
 		tempDir:         os.TempDir() + "/resourcepack_server",
 		packs:           make(map[string]*ResourcePack),
 		fileMonitorStop: make(chan struct{}),
-		scanCooldown:    config.ScanCooldown * time.Second,
+		scanCooldown:    config.ScanCooldown,
 	}
 
 	if err := os.MkdirAll(pm.tempDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建临时目录失败: %w", err)
+	}
+
+	if err := os.MkdirAll(pm.packsDirectory, 0755); err != nil {
+		return nil, fmt.Errorf("创建资源包目录失败: %w", err)
 	}
 
 	if err := pm.scanPacks(); err != nil {
@@ -122,7 +126,7 @@ func (pm *PacksManager) scanPacks() error {
 
 	for _, entry := range entries {
 		entryPath := filepath.Join(pm.packsDirectory, entry.Name())
-		
+
 		if entry.IsDir() {
 			if pm.isResourcePackDirectory(entryPath) {
 				pack, err := pm.loadDirectoryPack(entryPath)
@@ -279,7 +283,7 @@ func (pm *PacksManager) parsePackMcmeta(content string) *PackInfo {
 
 		return &PackInfo{
 			Description: description,
-			PackFormat: packFormat,
+			PackFormat:  packFormat,
 		}
 	}
 
@@ -346,7 +350,7 @@ func (pm *PacksManager) GetPack(name string) *ResourcePack {
 func (pm *PacksManager) GetAllPacks() []*ResourcePack {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	packs := make([]*ResourcePack, 0, len(pm.packs))
 	for _, pack := range pm.packs {
 		packs = append(packs, pack)
@@ -403,7 +407,7 @@ func (pm *PacksManager) handleFileEvent(event fsnotify.Event) {
 	}
 
 	time.Sleep(500 * time.Millisecond)
-	
+
 	if err := pm.scanPacks(); err != nil {
 		pm.logger.Error("文件变化后扫描失败", zap.Error(err))
 	}
@@ -419,7 +423,7 @@ func (pm *PacksManager) StopFileMonitoring() {
 
 func (pm *PacksManager) CreateZipFromDirectory(dirPath, packName string) (string, error) {
 	zipPath := filepath.Join(pm.tempDir, fmt.Sprintf("%s_%d.zip", packName, time.Now().Unix()))
-	
+
 	zipFile, err := os.Create(zipPath)
 	if err != nil {
 		return "", err

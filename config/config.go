@@ -1,15 +1,15 @@
 package config
 
 import (
-	"embed"
+	_ "embed"
 	"fmt"
 	"os"
 
 	"github.com/spf13/viper"
 )
 
-//go:embed settings.template.toml
-var configFS embed.FS
+//go:embed config.template.toml
+var configTemplate []byte
 
 type Config struct {
 	Server ServerConfig `mapstructure:"server"`
@@ -36,7 +36,7 @@ type LogConfig struct {
 }
 
 func LoadConfig() (*Config, error) {
-	viper.SetConfigName("settings")
+	viper.SetConfigName("config")
 	viper.SetConfigType("toml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("config")
@@ -73,25 +73,14 @@ func LoadConfig() (*Config, error) {
 }
 
 func createConfigFromEmbedded() error {
-	if err := os.MkdirAll("config", 0755); err != nil {
-		return err
-	}
+	configPath := "config.toml"
 
-	configPath := "settings.toml"
-	
 	if _, err := os.Stat(configPath); err == nil {
 		return nil
 	}
 
-	templateContent, err := configFS.ReadFile("settings.template.toml")
-	if err != nil {
-		return fmt.Errorf("读取内嵌模板失败: %w", err)
-	}
-
-	if err := os.WriteFile(configPath, templateContent, 0644); err != nil {
+	if err := os.WriteFile(configPath, configTemplate, 0644); err != nil {
 		return err
 	}
-
-	fmt.Printf("从内嵌模板创建配置文件: %s\n", configPath)
 	return nil
 }

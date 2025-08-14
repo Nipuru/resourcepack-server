@@ -1,5 +1,5 @@
 # Minecraft 资源包服务器配置文件模板
-# 程序首次运行时会自动复制此文件为 settings.toml
+# 程序首次运行时会自动复制此文件为 config.toml
 
 [server]
 host = "0.0.0.0"

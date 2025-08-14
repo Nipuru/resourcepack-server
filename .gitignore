@@ -20,7 +20,7 @@ logs/
 *.log
 
 # 配置文件（运行时生成）
-settings.toml
+config.toml
 
 # 临时文件
 temp/
