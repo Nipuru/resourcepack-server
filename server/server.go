@@ -147,15 +147,15 @@ func (s *Server) indexHandler(c *gin.Context) {
 `, len(resourcePacks))
 
 	if len(resourcePacks) == 0 {
-		htmlContent += `<div class="no-resourcePacks">暂无可用资源包</div>`
+		htmlContent += `<div class="no-pack">暂无可用资源包</div>`
 	} else {
 		for _, resourcePack := range resourcePacks {
 			sizeMB := float64(resourcePack.Size) / 1024 / 1024
 			htmlContent += fmt.Sprintf(`
-        <div class="resourcePack-card">
-            <div class="resourcePack-name">%s</div>
-            <div class="resourcePack-desc">%s</div>
-            <div class="resourcePack-meta">
+        <div class="pack-card">
+            <div class="pack-name">%s</div>
+            <div class="pack-desc">%s</div>
+            <div class="pack-meta">
                 格式: %d | 大小: %.2f MB<br>
                 类型: %s | 
                 更新时间: %s
