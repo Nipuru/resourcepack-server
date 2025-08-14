@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"resourcepack-server/pack"
 	"strconv"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"go.uber.org/zap"
 
 	"resourcepack-server/config"
-	"resourcepack-server/pack"
 )
 
 type Server struct {
@@ -51,7 +51,7 @@ func (s *Server) setupRoutes() {
 }
 
 func (s *Server) indexHandler(c *gin.Context) {
-	packs := s.packsManager.GetAllPacks()
+	resourcePacks := s.packsManager.GetAllPacks()
 
 	htmlContent := fmt.Sprintf(`
 <!DOCTYPE html>
@@ -89,7 +89,7 @@ func (s *Server) indexHandler(c *gin.Context) {
         .copy-btn:hover { background: #2980b9; }
         .copy-btn:active { background: #1f5f8b; }
         .hash-info { background: #ecf0f1; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.9em; }
-        .no-packs { text-align: center; color: #7f8c8d; font-style: italic; }
+        .no-resourcePacks { text-align: center; color: #7f8c8d; font-style: italic; }
         .copy-feedback { 
             position: fixed; 
             top: 20px; 
@@ -144,18 +144,18 @@ func (s *Server) indexHandler(c *gin.Context) {
         </p>
         
         <h2>可用资源包 (%d 个)</h2>
-`, len(packs))
+`, len(resourcePacks))
 
-	if len(packs) == 0 {
-		htmlContent += `<div class="no-packs">暂无可用资源包</div>`
+	if len(resourcePacks) == 0 {
+		htmlContent += `<div class="no-resourcePacks">暂无可用资源包</div>`
 	} else {
-		for _, pack := range packs {
-			sizeMB := float64(pack.Size) / 1024 / 1024
+		for _, resourcePack := range resourcePacks {
+			sizeMB := float64(resourcePack.Size) / 1024 / 1024
 			htmlContent += fmt.Sprintf(`
-        <div class="pack-card">
-            <div class="pack-name">%s</div>
-            <div class="pack-desc">%s</div>
-            <div class="pack-meta">
+        <div class="resourcePack-card">
+            <div class="resourcePack-name">%s</div>
+            <div class="resourcePack-desc">%s</div>
+            <div class="resourcePack-meta">
                 格式: %d | 大小: %.2f MB<br>
                 类型: %s | 
                 更新时间: %s
@@ -166,15 +166,15 @@ func (s *Server) indexHandler(c *gin.Context) {
             <a href="/download/%s" class="download-btn">下载资源包</a>
             <button onclick="copyHash('%s')" class="copy-btn">复制 Hash</button>
         </div>
-`, pack.Name, pack.Description, pack.PackFormat, sizeMB,
+`, resourcePack.Name, resourcePack.Description, resourcePack.PackFormat, sizeMB,
 				func() string {
-					if pack.IsDirectory {
+					if resourcePack.IsDirectory {
 						return "目录"
 					} else {
 						return "ZIP文件"
 					}
 				}(),
-				pack.LastModified.Format("2006-01-02 15:04:05"), pack.Hash, pack.Name, pack.Hash)
+				resourcePack.LastModified.Format("2006-01-02 15:04:05"), resourcePack.Hash, resourcePack.Name, resourcePack.Hash)
 		}
 	}
 
@@ -193,11 +193,11 @@ func (s *Server) indexHandler(c *gin.Context) {
 }
 
 func (s *Server) listPacksHandler(c *gin.Context) {
-	packs := s.packsManager.GetAllPacks()
-	packsData := make([]map[string]interface{}, 0, len(packs))
+	resourcePacks := s.packsManager.GetAllPacks()
+	packsData := make([]map[string]interface{}, 0, len(resourcePacks))
 
-	for _, pack := range packs {
-		packsData = append(packsData, pack.ToMap())
+	for _, resourcePack := range resourcePacks {
+		packsData = append(packsData, resourcePack.ToMap())
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -209,9 +209,9 @@ func (s *Server) listPacksHandler(c *gin.Context) {
 
 func (s *Server) getPackHandler(c *gin.Context) {
 	name := c.Param("name")
-	pack := s.packsManager.GetPack(name)
+	resourcePack := s.packsManager.GetPack(name)
 
-	if pack == nil {
+	if resourcePack == nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
 			"error":   "资源包不存在",
@@ -221,15 +221,15 @@ func (s *Server) getPackHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    pack.ToMap(),
+		"data":    resourcePack.ToMap(),
 	})
 }
 
 func (s *Server) downloadPackHandler(c *gin.Context) {
 	name := c.Param("name")
-	pack := s.packsManager.GetPack(name)
+	resourcePack := s.packsManager.GetPack(name)
 
-	if pack == nil {
+	if resourcePack == nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
 			"error":   "资源包不存在",
@@ -237,9 +237,9 @@ func (s *Server) downloadPackHandler(c *gin.Context) {
 		return
 	}
 
-	if pack.IsDirectory {
+	if resourcePack.IsDirectory {
 		// 创建临时zip文件
-		zipPath, err := s.packsManager.CreateZipFromDirectory(pack.Path, pack.Name)
+		zipPath, err := s.packsManager.CreateZipFromDirectory(resourcePack.Path, resourcePack.Name)
 		if err != nil {
 			s.logger.Error("创建zip文件失败", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -249,13 +249,13 @@ func (s *Server) downloadPackHandler(c *gin.Context) {
 			return
 		}
 
-		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", pack.Name))
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", resourcePack.Name))
 		c.Header("Content-Type", "application/zip")
 		c.File(zipPath)
 	} else {
-		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", pack.Name))
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", resourcePack.Name))
 		c.Header("Content-Type", "application/zip")
-		c.File(pack.Path)
+		c.File(resourcePack.Path)
 	}
 }
 

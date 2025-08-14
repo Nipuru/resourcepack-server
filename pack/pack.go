@@ -53,6 +53,8 @@ type PacksManager struct {
 	packsDirectory  string
 	tempDir         string
 	packs           map[string]*ResourcePack
+	zipCache        map[string]string
+	zipCacheMutex   sync.RWMutex
 	mu              sync.RWMutex
 	fileWatcher     *fsnotify.Watcher
 	fileMonitorStop chan struct{}
@@ -74,6 +76,8 @@ func NewPacksManager(config *Config, logger *zap.Logger) (*PacksManager, error) 
 		packsDirectory:  config.Directory,
 		tempDir:         os.TempDir() + "/resourcepack_server",
 		packs:           make(map[string]*ResourcePack),
+		zipCache:        make(map[string]string),
+		zipCacheMutex:   sync.RWMutex{},
 		fileMonitorStop: make(chan struct{}),
 		scanCooldown:    config.ScanCooldown,
 	}
@@ -166,6 +170,7 @@ func (pm *PacksManager) scanPacks() error {
 	}
 	if len(removed) > 0 {
 		pm.logger.Info("移除资源包", zap.Strings("names", removed))
+		pm.cleanupZipCache(removed)
 	}
 
 	pm.logger.Info("扫描完成", zap.Int("count", len(pm.packs)))
@@ -419,10 +424,23 @@ func (pm *PacksManager) StopFileMonitoring() {
 		pm.fileWatcher.Close()
 		pm.logger.Info("文件监控已停止")
 	}
+
+	pm.cleanupAllZipCache()
 }
 
 func (pm *PacksManager) CreateZipFromDirectory(dirPath, packName string) (string, error) {
-	zipPath := filepath.Join(pm.tempDir, fmt.Sprintf("%s_%d.zip", packName, time.Now().Unix()))
+	pm.zipCacheMutex.RLock()
+	zipPath, ok := pm.zipCache[packName]
+	pm.zipCacheMutex.RUnlock()
+
+	if ok {
+		return zipPath, nil
+	}
+
+	pm.zipCacheMutex.Lock()
+	defer pm.zipCacheMutex.Unlock()
+
+	zipPath = filepath.Join(pm.tempDir, fmt.Sprintf("%s_%d.zip", packName, time.Now().Unix()))
 
 	zipFile, err := os.Create(zipPath)
 	if err != nil {
@@ -461,7 +479,8 @@ func (pm *PacksManager) CreateZipFromDirectory(dirPath, packName string) (string
 		return "", err
 	}
 
-	pm.logger.Info("已创建临时zip文件", zap.String("path", zipPath))
+	pm.logger.Info("已创建临时文件", zap.String("path", zipPath))
+	pm.zipCache[packName] = zipPath
 	return zipPath, nil
 }
 
@@ -471,4 +490,28 @@ func (pm *PacksManager) GetPacksDirectory() string {
 
 func (pm *PacksManager) RescanPacks() error {
 	return pm.scanPacks()
+}
+
+func (pm *PacksManager) cleanupZipCache(removedPacks []string) {
+	pm.zipCacheMutex.Lock()
+	defer pm.zipCacheMutex.Unlock()
+
+	for _, packName := range removedPacks {
+		if zipPath, exists := pm.zipCache[packName]; exists {
+			if err := os.Remove(zipPath); err != nil {
+				pm.logger.Warn("删除临时文件失败", zap.String("path", zipPath), zap.Error(err))
+			} else {
+				pm.logger.Info("已删除临时文件", zap.String("path", zipPath))
+			}
+			delete(pm.zipCache, packName)
+		}
+	}
+}
+
+func (pm *PacksManager) cleanupAllZipCache() {
+	var removedPacks []string
+	for packName := range pm.zipCache {
+		removedPacks = append(removedPacks, packName)
+	}
+	pm.cleanupZipCache(removedPacks)
 }
