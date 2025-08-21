@@ -107,11 +107,7 @@ func (pm *PacksManager) scanPacks() error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	oldPacks := make(map[string]bool)
-	for name := range pm.packs {
-		oldPacks[name] = true
-	}
-
+	oldPacks := pm.packs
 	pm.packs = make(map[string]*ResourcePack)
 	pm.logger.Info("开始扫描资源包目录", zap.String("directory", pm.packsDirectory))
 
@@ -148,20 +144,18 @@ func (pm *PacksManager) scanPacks() error {
 		}
 	}
 
-	newPacks := make(map[string]bool)
-	for name := range pm.packs {
-		newPacks[name] = true
-	}
-
-	var added, removed []string
-	for name := range newPacks {
-		if !oldPacks[name] {
-			added = append(added, name)
+	var added, removed, updated []string
+	for _, newPack := range pm.packs {
+		oldPack := oldPacks[newPack.Name]
+		if oldPack == nil {
+			added = append(added, newPack.Name)
+		} else if oldPack.Hash != newPack.Hash {
+			updated = append(updated, newPack.Name)
 		}
 	}
-	for name := range oldPacks {
-		if !newPacks[name] {
-			removed = append(removed, name)
+	for _, oldPack := range oldPacks {
+		if pm.packs[oldPack.Name] != nil {
+			removed = append(removed, oldPack.Name)
 		}
 	}
 
@@ -171,6 +165,10 @@ func (pm *PacksManager) scanPacks() error {
 	if len(removed) > 0 {
 		pm.logger.Info("移除资源包", zap.Strings("names", removed))
 		pm.cleanupZipCache(removed)
+	}
+	if len(updated) > 0 {
+		pm.logger.Info("更新资源包", zap.Strings("names", updated))
+		pm.cleanupZipCache(updated)
 	}
 
 	pm.logger.Info("扫描完成", zap.Int("count", len(pm.packs)))
