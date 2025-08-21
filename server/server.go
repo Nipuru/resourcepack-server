@@ -59,7 +59,7 @@ func (s *Server) indexHandler(c *gin.Context) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft 资源包服务器</title>
+    <title>%s</title>
     <style>
         body { font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
         .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -144,7 +144,7 @@ func (s *Server) indexHandler(c *gin.Context) {
         </p>
         
         <h2>可用资源包 (%d 个)</h2>
-`, len(resourcePacks))
+`, s.config.Server.Application, len(resourcePacks))
 
 	if len(resourcePacks) == 0 {
 		htmlContent += `<div class="no-pack">暂无可用资源包</div>`

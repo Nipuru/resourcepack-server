@@ -18,9 +18,10 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Host  string `mapstructure:"host"`
-	Port  int    `mapstructure:"port"`
-	Debug bool   `mapstructure:"debug"`
+	Application string `mapstructure:"application"`
+	Host        string `mapstructure:"host"`
+	Port        int    `mapstructure:"port"`
+	Debug       bool   `mapstructure:"debug"`
 }
 
 type PacksConfig struct {
@@ -41,6 +42,7 @@ func LoadConfig() (*Config, error) {
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("config")
 
+	viper.SetDefault("server.application", "Minecraft ResourcePack Server")
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", 8080)
 	viper.SetDefault("server.debug", false)
