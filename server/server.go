@@ -139,12 +139,12 @@ func (s *Server) indexHandler(c *gin.Context) {
 </head>
 <body>
     <div class="container">
-        <h1>Minecraft 资源包服务器</h1>
+        <h1>%s</h1>
         <p style="text-align: center; color: #7f8c8d; margin-bottom: 30px;">
         </p>
         
         <h2>可用资源包 (%d 个)</h2>
-`, s.config.Server.Application, len(resourcePacks))
+`, s.config.Server.Application, s.config.Server.Application, len(resourcePacks))
 
 	if len(resourcePacks) == 0 {
 		htmlContent += `<div class="no-pack">暂无可用资源包</div>`
